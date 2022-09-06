@@ -6,14 +6,14 @@
     <v-btn class="mt-n6 mx-2" x-large color="primary" @click="clearData">
       {{ clearDataArea }}
     </v-btn>
-    <v-select v-model="baudRate" dense style="width:150px" class="d-inline-flex mt-3 mx-1" :items="items" label="波特率"
-      filled>
+    <v-select :disabled="baudDisable" v-model="baudRate" dense style="width:150px" class="d-inline-flex mt-3 mx-1"
+      :items="items" label="波特率" filled>
     </v-select>
     <v-checkbox class="d-inline-flex mx-2" v-model="hexDisply" label="Hex显示"></v-checkbox>
     <v-checkbox class="d-inline-flex mx-2" v-model="hexSend" label="Hex发送"></v-checkbox>
     <v-checkbox class="d-inline-flex mx-2" v-model="newLine" label="回车换行"></v-checkbox>
     <v-text-field dense class="d-inline-flex mx-2" v-model="sendData" filled clearable></v-text-field>
-    <v-btn :disabled="sendStatus" class="mt-n6 mx-2" x-large color="primary" @click="send"> 发送
+    <v-btn :disabled="sendDisable" class="mt-n6 mx-2" x-large color="primary" @click="send"> 发送
     </v-btn>
     <textarea readonly
       style="border: 1px solid black; display:block;width: 100%;height: 85%;resize: none;padding: 0px 10px;"
@@ -23,12 +23,12 @@
 </template>
 
 <script>
-import { tr } from 'vuetify/lib/locale'
 
 export default {
   name: "SerialView",
   data() {
     return {
+      serialOK: false,
       serialDataArea: null,
       textAreaHeight: `${parseInt(document.documentElement.clientHeight) - 197}`,
       findPortBtnText: "寻找端口",
@@ -40,7 +40,8 @@ export default {
       port: null,
       sendData: null,
       receiveData: "",
-      sendStatus: true,
+      baudDisable: false,
+      sendDisable: true,
       textDecoder: null,
       textEncoder: null,
       readableStreamClosed: null,
@@ -52,6 +53,9 @@ export default {
   },
   methods: {
     findPort: async function () {
+      if (this.serialOK === false) {
+        return
+      }
       if (this.port !== null) {
         this.reader.cancel()
         await this.readableStreamClosed.catch((e) => { console.log(e) })
@@ -60,22 +64,27 @@ export default {
         await this.port.close()
         this.findPortBtnText = "寻找端口"
         this.port = null
-        this.sendStatus = true
+        this.sendDisable = true
       } else {
         this.port = await navigator.serial.requestPort()
         await this.port.open({ baudRate: parseInt(this.baudRate) })
         navigator.serial.addEventListener("connect", (event) => {
-          // TODO: 自动打开事件。目标器或警告用户端口可用。
-          console.log(event)
         })
 
-        navigator.serial.addEventListener("disconnect", (event) => {
-          // TODO: Remove |event.target| from the UI.
-          // 如果打开了串行端口，还会观察到流错误。
+        navigator.serial.addEventListener("disconnect", async (event) => {
           console.log(event)
+          this.reader.cancel()
+          await this.readableStreamClosed.catch((e) => { console.log(e) })
+          this.writer.close()
+          await this.writableStreamClosed
+          await this.port.close()
+          this.findPortBtnText = "寻找端口"
+          this.port = null
+          this.sendDisable = true
         })
+        this.baudDisable = true
         this.findPortBtnText = "关闭端口"
-        this.sendStatus = false
+        this.sendDisable = false
         this.textDecoder = new TextDecoderStream()
         this.readableStreamClosed = this.port.readable.pipeTo(this.textDecoder.writable)
         this.reader = this.textDecoder.readable.getReader()
@@ -91,9 +100,9 @@ export default {
             break
           }
           if (this.hexDisply === true) {
-            serialDataArea.value += this.stringtoHex(value)
+            serialDataArea.value += `${new Date().toLocaleString()} 收-> ${this.stringtoHex(value)}\r\n\r\n`
           } else {
-            serialDataArea.value += value
+            serialDataArea.value += `${new Date().toLocaleString()} 收-> ${value}\r\n`
           }
           serialDataArea.scrollTop = serialDataArea.scrollHeight
         }
@@ -106,13 +115,16 @@ export default {
       if (this.sendData === null || this.sendData === "") {
         return
       } else {
+        let data = this.sendData
         if (this.newLine === true) {
+          this.serialDataArea.value += `${new Date().toLocaleString()} 发-> ${data}\r\n\r\n`
           if (this.hexSend === true) {
             await this.writer.write(`${this.hextoString(this.sendData)}\r\n`)
           } else {
             await this.writer.write(`${this.sendData}\r\n`)
           }
         } else {
+          this.serialDataArea.value += `${new Date().toLocaleString()} 发-> ${data}\r\n`
           if (this.hexSend === true) {
             await this.writer.write(`${this.hextoString(this.sendData)}`)
           } else {
@@ -142,6 +154,10 @@ export default {
     }
   },
   mounted() {
+    if (typeof navigator.serial.requestPort !== "function") {
+      alert("当前环境不支持串口操作")
+      this.serialOK = true
+    }
     window.Jeremy = this
     this.serialDataArea = document.getElementById('serialDataArea')
   }

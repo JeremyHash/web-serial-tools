@@ -11,7 +11,7 @@ export default {
   components: {},
   methods: {
     handleNameClick: function () {
-      window.location.href = "https://gitee.com/HashJeremy";
+      window.location.href = "https://github.com/JeremyHash";
     },
   },
 };
