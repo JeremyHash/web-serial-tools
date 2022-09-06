@@ -156,6 +156,8 @@ export default {
   mounted() {
     if (typeof navigator.serial.requestPort !== "function") {
       alert("当前环境不支持串口操作")
+      this.serialOK = false
+    } else {
       this.serialOK = true
     }
     window.Jeremy = this
