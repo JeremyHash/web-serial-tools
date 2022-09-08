@@ -54,6 +54,7 @@ export default {
   methods: {
     findPort: async function () {
       if (this.serialOK === false) {
+        alert("当前环境不支持串口操作")
         return
       }
       if (this.port !== null) {
@@ -67,7 +68,15 @@ export default {
         this.sendDisable = true
       } else {
         this.port = await navigator.serial.requestPort()
-        await this.port.open({ baudRate: parseInt(this.baudRate) })
+        try {
+          await this.port.open({ baudRate: parseInt(this.baudRate) })
+        } catch (e) {
+          console.log(typeof e)
+          console.log(e)
+          this.port = null
+          alert("打开端口失败")
+          return
+        }
         navigator.serial.addEventListener("connect", (event) => {
         })
 
@@ -94,7 +103,7 @@ export default {
 
         // await writer.write("hello")
         while (true) {
-          const { value, done } = await this.reader.read()
+          let { value, done } = await this.reader.read()
           if (done) {
             this.reader.releaseLock()
             break
@@ -102,6 +111,16 @@ export default {
           if (this.hexDisply === true) {
             serialDataArea.value += `${new Date().toLocaleString()} 收-> ${this.stringtoHex(value)}\r\n\r\n`
           } else {
+            console.log(`value: ${value}`)
+            console.log(`valueHex: ${this.stringtoHex(value)}`)
+            value = value.replaceAll("\n", "\n" + " ".repeat(39))
+            // if (value.includes("\r\n")) {
+            //   value = value.replaceAll("\r\n", "\r\n" + " ".repeat(39))
+            // } else {
+            //   value = value.replaceAll("\n", "\n" + " ".repeat(39))
+            // }
+            console.log(`value: ${value}`)
+            console.log(`valueHex: ${this.stringtoHex(value)}`)
             serialDataArea.value += `${new Date().toLocaleString()} 收-> ${value}\r\n`
           }
           serialDataArea.scrollTop = serialDataArea.scrollHeight
