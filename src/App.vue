@@ -2,7 +2,7 @@
   <v-app app>
     <v-app-bar app color="blue" :clipped-left="this.clippedLeft">
       <v-app-bar-nav-icon @click="switchBar" class="white--text"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ AppTitle }}</v-toolbar-title>
+      <v-toolbar-title class="white--text">{{ AppTitle }}</v-toolbar-title>
     </v-app-bar>
     <v-navigation-drawer app v-model="drawer" :clipped="this.clipped">
       <v-card class="mx-auto my-10" width="200px" height="200px"
